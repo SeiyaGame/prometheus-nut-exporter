@@ -32,6 +32,24 @@ curl -fsSLO https://raw.githubusercontent.com/SeiyaGame/prometheus-nut-exporter/
 docker compose up -d
 ```
 
+The container runs as an unprivileged user (`5000:5000`) and has a health check on the home page.
+
+#### Hardened mode
+
+The exporter only opens TCP connections to the NUT servers and answers HTTP, so it runs without anything else:
+read-only filesystem, all capabilities dropped, `no-new-privileges`, memory, CPU and process limits, and the
+port bound to `127.0.0.1` only. Example: [`docker-compose.hardened.yml`](docker-compose.hardened.yml).
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/SeiyaGame/prometheus-nut-exporter/master/docker-compose.hardened.yml
+docker compose -f docker-compose.hardened.yml up -d
+```
+
+- When Prometheus runs on another machine, remove `127.0.0.1` from `ports:` (or put both containers on
+  the same Docker network and drop `ports:`).
+- `TOKIO_WORKER_THREADS=2` keeps the thread count under `pids_limit` on hosts with many CPUs.
+- The health check calls `127.0.0.1`: keep `HTTP_ADDRESS` at its default (`::`) or set it to `0.0.0.0`.
+
 ### Binary
 
 Static Linux binaries (no dependencies) for `amd64`, `arm64`, `armv7`, `armv6` and `386` are attached to each

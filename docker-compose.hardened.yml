@@ -1,0 +1,40 @@
+# Hardened mode: the exporter only needs the network, so the container gets nothing else.
+# Read-only filesystem, no capabilities, no privilege escalation, limited resources.
+#   docker compose -f docker-compose.hardened.yml up -d
+services:
+  nut-exporter:
+    # Pin a version (e.g. :1.3.0) to choose when to upgrade; :1 follows the v1 releases.
+    image: ghcr.io/seiyagame/prometheus-nut-exporter:1
+    container_name: nut-exporter
+    restart: unless-stopped
+
+    # Any non-root user works: the exporter writes no files. 5000:5000 is the image default.
+    user: "5000:5000"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+    environment:
+      - TZ=Europe/Paris
+      - HTTP_PATH=/metrics
+      # Two threads are plenty, instead of one per CPU of the host (pids_limit below)
+      - TOKIO_WORKER_THREADS=2
+      #- RUST_LOG=info
+
+    ports:
+      # Only reachable from the host (Prometheus on the same machine). Remove 127.0.0.1 to
+      # expose it, or drop `ports:` and put Prometheus on the same Docker network.
+      - "127.0.0.1:9995:9995"
+
+    # Uses about 8 MiB and no CPU between scrapes
+    mem_limit: 64m
+    cpus: 0.5
+    pids_limit: 64
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

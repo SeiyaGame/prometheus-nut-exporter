@@ -1,14 +1,24 @@
-# Example: the exporter next to Prometheus. Point the scrape config at nut-exporter:9995
-# (see the README), with the NUT server as the target.
+# Point the Prometheus scrape config at nut-exporter:9995 (see the README), with the NUT
+# server as the target. For a locked-down container, see docker-compose.hardened.yml.
 services:
   nut-exporter:
+    # Pin a version (e.g. :1.3.0) to choose when to upgrade; :1 follows the v1 releases.
     image: ghcr.io/seiyagame/prometheus-nut-exporter:1
+    container_name: nut-exporter
     restart: unless-stopped
+
     environment:
       - TZ=Europe/Paris
       - HTTP_PATH=/metrics
       #- RUST_LOG=info
       #- HTTP_ADDRESS=::
       #- HTTP_PORT=9995
+
     ports:
       - "9995:9995/tcp"
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
