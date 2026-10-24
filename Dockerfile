@@ -24,7 +24,7 @@ case $TARGETPLATFORM in \
 *) false ;; \
 esac \
 && rustup target add $RUST_TARGET \
-&& APP_VERSION="$APP_VERSION" cargo rustc --locked --target=$RUST_TARGET --release -- -C linker=rust-lld \
+&& APP_VERSION="$APP_VERSION" cargo rustc --locked --bin prometheus-nut-exporter --target=$RUST_TARGET --release -- -C linker=rust-lld \
 && mv target/$RUST_TARGET/release/prometheus-nut-exporter .
 
 ## Runtime stage (no RUN: multi-arch images build without QEMU)
@@ -34,6 +34,9 @@ ARG APP_UID=5000
 ARG APP_GID=5000
 USER $APP_UID:$APP_GID
 EXPOSE 9995
+# The home page answers without scraping a NUT server (busybox wget, HTTP_ADDRESS must include 127.0.0.1)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD wget -q -O /dev/null "http://127.0.0.1:${HTTP_PORT:-9995}/" || exit 1
 ENTRYPOINT ["./prometheus-nut-exporter"]
 
 ## The CI builds the binaries once and only packages them: --target prebuilt

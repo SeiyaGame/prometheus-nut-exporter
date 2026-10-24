@@ -1,0 +1,303 @@
+# TYPE nut_exporter_info info
+# UNIT nut_exporter_info 
+# HELP nut_exporter_info Metadata about the exporter.
+nut_exporter_info{version="VERSION"} 1
+# TYPE nut_server_info info
+# UNIT nut_server_info 
+# HELP nut_server_info Metadata about the NUT server.
+nut_server_info{version="2.7.4"} 1
+# TYPE nut_ups_info info
+# UNIT nut_ups_info 
+# HELP nut_ups_info Metadata about the UPS.
+nut_ups_info{ups="ups-1",description="desc 1",device_type="ups",manufacturer="Hewlett-Packard",model="HP T1500 G3 UPS",battery_type="PbAc",usb_vendor_id="03f0",usb_product_id="4de5",ups_firmware="100",type="ups"} 1
+nut_ups_info{ups="ups-2",description="desc 2",device_type="ups",manufacturer="APC",model="Smart-UPS 1000",driver="snmp-ups",driver_version="2.7.4",driver_version_internal="0.97",driver_version_data="apcc MIB 1.2",ups_firmware="600.3.I",type="ups",nut_version="2.7.4"} 1
+nut_ups_info{ups="ups-3",description="desc 3",device_type="ups",manufacturer="APC",model="Smart-UPS 620   ",driver="apcsmart",driver_version="2.7.4",driver_version_internal="3.1",ups_firmware="22.6.I",type="ups",nut_version="2.7.4"} 1
+nut_ups_info{ups="ups-4",description="desc 4",device_type="ups",manufacturer="1",model="2200R",battery_type="PbAcid",driver="usbhid-ups",driver_version="2.7.4",driver_version_internal="0.41",driver_version_data="CyberPower HID 0.4",usb_vendor_id="0764",usb_product_id="0601",type="ups",nut_version="2.7.4"} 1
+nut_ups_info{ups="ups-5",description="Eaton \"5\"",device_type="ups",driver="blazer_usb",driver_version="2.7.4",driver_version_internal="0.12",usb_vendor_id="0001",usb_product_id="0000",ups_type="offline / line interactive",type="ups",nut_version="2.7.4"} 1
+# TYPE nut_info info
+# UNIT nut_info 
+# HELP nut_info Metadata about the NUT server. (Deprecated, use nut_server_info instead.)
+nut_info{version="2.7.4"} 1
+# TYPE nut_ups_status stateset
+# UNIT nut_ups_status 
+# HELP nut_ups_status UPS status. Check for a specific status with the "status" label. ("ups.status")
+nut_ups_status{ups="ups-1",status="OL"} 1
+nut_ups_status{ups="ups-1",status="OB"} 0
+nut_ups_status{ups="ups-1",status="LB"} 0
+nut_ups_status{ups="ups-1",status="CHRG"} 1
+nut_ups_status{ups="ups-1",status="RB"} 0
+nut_ups_status{ups="ups-1",status="FSD"} 0
+nut_ups_status{ups="ups-1",status="BYPASS"} 0
+nut_ups_status{ups="ups-1",status="SD"} 0
+nut_ups_status{ups="ups-1",status="CP"} 0
+nut_ups_status{ups="ups-1",status="BOOST"} 0
+nut_ups_status{ups="ups-1",status="OFF"} 0
+nut_ups_status{ups="ups-2",status="OL"} 1
+nut_ups_status{ups="ups-2",status="OB"} 0
+nut_ups_status{ups="ups-2",status="LB"} 0
+nut_ups_status{ups="ups-2",status="CHRG"} 0
+nut_ups_status{ups="ups-2",status="RB"} 0
+nut_ups_status{ups="ups-2",status="FSD"} 0
+nut_ups_status{ups="ups-2",status="BYPASS"} 0
+nut_ups_status{ups="ups-2",status="SD"} 0
+nut_ups_status{ups="ups-2",status="CP"} 0
+nut_ups_status{ups="ups-2",status="BOOST"} 0
+nut_ups_status{ups="ups-2",status="OFF"} 0
+nut_ups_status{ups="ups-3",status="OL"} 1
+nut_ups_status{ups="ups-3",status="OB"} 0
+nut_ups_status{ups="ups-3",status="LB"} 0
+nut_ups_status{ups="ups-3",status="CHRG"} 0
+nut_ups_status{ups="ups-3",status="RB"} 0
+nut_ups_status{ups="ups-3",status="FSD"} 0
+nut_ups_status{ups="ups-3",status="BYPASS"} 0
+nut_ups_status{ups="ups-3",status="SD"} 0
+nut_ups_status{ups="ups-3",status="CP"} 0
+nut_ups_status{ups="ups-3",status="BOOST"} 0
+nut_ups_status{ups="ups-3",status="OFF"} 0
+nut_ups_status{ups="ups-4",status="OL"} 1
+nut_ups_status{ups="ups-4",status="OB"} 0
+nut_ups_status{ups="ups-4",status="LB"} 0
+nut_ups_status{ups="ups-4",status="CHRG"} 0
+nut_ups_status{ups="ups-4",status="RB"} 0
+nut_ups_status{ups="ups-4",status="FSD"} 0
+nut_ups_status{ups="ups-4",status="BYPASS"} 0
+nut_ups_status{ups="ups-4",status="SD"} 0
+nut_ups_status{ups="ups-4",status="CP"} 0
+nut_ups_status{ups="ups-4",status="BOOST"} 0
+nut_ups_status{ups="ups-4",status="OFF"} 0
+nut_ups_status{ups="ups-5",status="OL"} 1
+nut_ups_status{ups="ups-5",status="OB"} 0
+nut_ups_status{ups="ups-5",status="LB"} 0
+nut_ups_status{ups="ups-5",status="CHRG"} 0
+nut_ups_status{ups="ups-5",status="RB"} 0
+nut_ups_status{ups="ups-5",status="FSD"} 0
+nut_ups_status{ups="ups-5",status="BYPASS"} 0
+nut_ups_status{ups="ups-5",status="SD"} 0
+nut_ups_status{ups="ups-5",status="CP"} 0
+nut_ups_status{ups="ups-5",status="BOOST"} 1
+nut_ups_status{ups="ups-5",status="OFF"} 0
+# TYPE nut_beeper_status gauge
+# UNIT nut_beeper_status 
+# HELP nut_beeper_status If the beeper is enabled. Unknown (0), enabled (1), disabled (2) or muted (3). ("ups.beeper.status")
+nut_beeper_status{ups="ups-1"} 1
+nut_beeper_status{ups="ups-4"} 1
+nut_beeper_status{ups="ups-5"} 1
+# TYPE nut_load gauge
+# UNIT nut_load 
+# HELP nut_load Load. (0-1) ("ups.load")
+nut_load{ups="ups-1"} 0.31
+nut_load{ups="ups-2"} 0.058
+nut_load{ups="ups-3"} 0.149
+nut_load{ups="ups-4"} 0.21
+nut_load{ups="ups-5"} 0.15
+# TYPE nut_temperature_celsius gauge
+# UNIT nut_temperature_celsius celsius
+# HELP nut_temperature_celsius UPS temperature ("ups.temperature")
+nut_temperature_celsius{ups="ups-2"} 28.8
+# TYPE nut_battery_charge gauge
+# UNIT nut_battery_charge 
+# HELP nut_battery_charge Battery level. (0-1) ("battery.charge")
+nut_battery_charge{ups="ups-1"} 0.97
+nut_battery_charge{ups="ups-2"} 1.0
+nut_battery_charge{ups="ups-3"} 1.0
+nut_battery_charge{ups="ups-4"} 1.0
+nut_battery_charge{ups="ups-5"} 1.0
+# TYPE nut_battery_charge_low gauge
+# UNIT nut_battery_charge_low 
+# HELP nut_battery_charge_low Battery level threshold for low state. (0-1) ("battery.charge.low")
+nut_battery_charge_low{ups="ups-1"} 0.2
+nut_battery_charge_low{ups="ups-4"} 0.1
+# TYPE nut_battery_charge_warning gauge
+# UNIT nut_battery_charge_warning 
+# HELP nut_battery_charge_warning Battery level threshold for warning state. (0-1) ("battery.charge.warning")
+nut_battery_charge_warning{ups="ups-1"} 0.2
+nut_battery_charge_warning{ups="ups-4"} 0.2
+# TYPE nut_battery_charge_restart gauge
+# UNIT nut_battery_charge_restart 
+# HELP nut_battery_charge_restart Battery level threshold for restarting after power-off. (0-1) ("battery.charge.restart")
+nut_battery_charge_restart{ups="ups-2"} 0.15
+nut_battery_charge_restart{ups="ups-3"} 0.0
+# TYPE nut_battery_runtime_seconds gauge
+# UNIT nut_battery_runtime_seconds seconds
+# HELP nut_battery_runtime_seconds Battery runtime. ("battery.runtime")
+nut_battery_runtime_seconds{ups="ups-1"} 1693
+nut_battery_runtime_seconds{ups="ups-2"} 9180
+nut_battery_runtime_seconds{ups="ups-3"} 3300
+nut_battery_runtime_seconds{ups="ups-4"} 1320
+nut_battery_runtime_seconds{ups="ups-5"} 2667
+# TYPE nut_battery_runtime_low_seconds gauge
+# UNIT nut_battery_runtime_low_seconds seconds
+# HELP nut_battery_runtime_low_seconds Battery runtime threshold for state low. ("battery.runtime.low")
+nut_battery_runtime_low_seconds{ups="ups-2"} 120
+nut_battery_runtime_low_seconds{ups="ups-3"} 120
+nut_battery_runtime_low_seconds{ups="ups-4"} 300
+# TYPE nut_delay_shutdown_seconds gauge
+# UNIT nut_delay_shutdown_seconds seconds
+# HELP nut_delay_shutdown_seconds Interval to wait after shutdown with delay command. ("ups.delay.shutdown")
+nut_delay_shutdown_seconds{ups="ups-1"} 20
+nut_delay_shutdown_seconds{ups="ups-2"} 90
+nut_delay_shutdown_seconds{ups="ups-3"} 20
+nut_delay_shutdown_seconds{ups="ups-4"} 60
+nut_delay_shutdown_seconds{ups="ups-5"} 30
+# TYPE nut_delay_start_seconds gauge
+# UNIT nut_delay_start_seconds seconds
+# HELP nut_delay_start_seconds Interval to wait before (re)starting the load. ("ups.delay.start")
+nut_delay_start_seconds{ups="ups-1"} 30
+nut_delay_start_seconds{ups="ups-2"} 0
+nut_delay_start_seconds{ups="ups-3"} 0
+nut_delay_start_seconds{ups="ups-4"} 120
+nut_delay_start_seconds{ups="ups-5"} 180
+# TYPE nut_battery_voltage_volts gauge
+# UNIT nut_battery_voltage_volts volts
+# HELP nut_battery_voltage_volts Battery voltage. ("battery.voltage")
+nut_battery_voltage_volts{ups="ups-1"} 40.1
+nut_battery_voltage_volts{ups="ups-2"} 27.5
+nut_battery_voltage_volts{ups="ups-3"} 13.85
+nut_battery_voltage_volts{ups="ups-4"} 260.0
+nut_battery_voltage_volts{ups="ups-5"} 13.6
+# TYPE nut_battery_voltage_nominal_volts gauge
+# UNIT nut_battery_voltage_nominal_volts volts
+# HELP nut_battery_voltage_nominal_volts Battery voltage (nominal). ("battery.voltage.nominal")
+nut_battery_voltage_nominal_volts{ups="ups-1"} 40.0
+nut_battery_voltage_nominal_volts{ups="ups-2"} 0.0
+nut_battery_voltage_nominal_volts{ups="ups-3"} 12.0
+nut_battery_voltage_nominal_volts{ups="ups-4"} 120.0
+nut_battery_voltage_nominal_volts{ups="ups-5"} 12.0
+# TYPE nut_battery_voltage_high_volts gauge
+# UNIT nut_battery_voltage_high_volts volts
+# HELP nut_battery_voltage_high_volts Battery voltage for full (charge level calculation). ("battery.voltage.high")
+nut_battery_voltage_high_volts{ups="ups-5"} 13.8
+# TYPE nut_battery_voltage_low_volts gauge
+# UNIT nut_battery_voltage_low_volts volts
+# HELP nut_battery_voltage_low_volts Battery voltage for empty (charge level calculation). ("battery.voltage.low")
+nut_battery_voltage_low_volts{ups="ups-5"} 10.4
+# TYPE nut_battery_temperature_celsius gauge
+# UNIT nut_battery_temperature_celsius celsius
+# HELP nut_battery_temperature_celsius Battery temperature. ("battery.temperature")
+nut_battery_temperature_celsius{ups="ups-1"} 29.9
+# TYPE nut_input_voltage_volts gauge
+# UNIT nut_input_voltage_volts volts
+# HELP nut_input_voltage_volts Input voltage. ("input.voltage")
+nut_input_voltage_volts{ups="ups-1"} 230.0
+nut_input_voltage_volts{ups="ups-2"} 234.7
+nut_input_voltage_volts{ups="ups-3"} 230.4
+nut_input_voltage_volts{ups="ups-4"} 238.7
+nut_input_voltage_volts{ups="ups-5"} 209.3
+# TYPE nut_input_voltage_nominal_volts gauge
+# UNIT nut_input_voltage_nominal_volts volts
+# HELP nut_input_voltage_nominal_volts Input voltage (nominal). ("input.voltage.nominal")
+nut_input_voltage_nominal_volts{ups="ups-1"} 230.0
+nut_input_voltage_nominal_volts{ups="ups-4"} 230.0
+nut_input_voltage_nominal_volts{ups="ups-5"} 230.0
+# TYPE nut_input_voltage_minimum_volts gauge
+# UNIT nut_input_voltage_minimum_volts volts
+# HELP nut_input_voltage_minimum_volts Input voltage (minimum seen). ("input.voltage.minimum")
+nut_input_voltage_minimum_volts{ups="ups-2"} 233.2
+nut_input_voltage_minimum_volts{ups="ups-3"} 228.9
+# TYPE nut_input_voltage_maximum_volts gauge
+# UNIT nut_input_voltage_maximum_volts volts
+# HELP nut_input_voltage_maximum_volts Input voltage (maximum seen). ("input.voltage.maximum")
+nut_input_voltage_maximum_volts{ups="ups-2"} 236.1
+nut_input_voltage_maximum_volts{ups="ups-3"} 230.4
+# TYPE nut_input_transfer_low_volts gauge
+# UNIT nut_input_transfer_low_volts volts
+# HELP nut_input_transfer_low_volts Input lower transfer threshold. ("input.transfer.low")
+nut_input_transfer_low_volts{ups="ups-1"} 194.0
+nut_input_transfer_low_volts{ups="ups-2"} 208.0
+nut_input_transfer_low_volts{ups="ups-3"} 208.0
+nut_input_transfer_low_volts{ups="ups-4"} 165.0
+# TYPE nut_input_transfer_high_volts gauge
+# UNIT nut_input_transfer_high_volts volts
+# HELP nut_input_transfer_high_volts Input upper transfer threshold. ("input.transfer.high")
+nut_input_transfer_high_volts{ups="ups-1"} 266.0
+nut_input_transfer_high_volts{ups="ups-2"} 253.0
+nut_input_transfer_high_volts{ups="ups-3"} 253.0
+nut_input_transfer_high_volts{ups="ups-4"} 290.0
+# TYPE nut_input_current_nominal_amperes gauge
+# UNIT nut_input_current_nominal_amperes amperes
+# HELP nut_input_current_nominal_amperes Input current (nominal). ("input.current.nominal")
+nut_input_current_nominal_amperes{ups="ups-5"} 8.0
+# TYPE nut_input_frequency_hertz gauge
+# UNIT nut_input_frequency_hertz hertz
+# HELP nut_input_frequency_hertz Input frequency. ("input.frequency")
+nut_input_frequency_hertz{ups="ups-1"} 50.0
+nut_input_frequency_hertz{ups="ups-2"} 50.0
+nut_input_frequency_hertz{ups="ups-3"} 50.0
+nut_input_frequency_hertz{ups="ups-5"} 50.0
+# TYPE nut_input_frequency_nominal_hertz gauge
+# UNIT nut_input_frequency_nominal_hertz hertz
+# HELP nut_input_frequency_nominal_hertz Input frequency (nominal). ("input.frequency.nominal")
+nut_input_frequency_nominal_hertz{ups="ups-5"} 50.0
+# TYPE nut_output_voltage_volts gauge
+# UNIT nut_output_voltage_volts volts
+# HELP nut_output_voltage_volts Output voltage. ("output.voltage")
+nut_output_voltage_volts{ups="ups-1"} 230.0
+nut_output_voltage_volts{ups="ups-2"} 234.7
+nut_output_voltage_volts{ups="ups-3"} 230.4
+nut_output_voltage_volts{ups="ups-4"} 237.2
+nut_output_voltage_volts{ups="ups-5"} 246.9
+# TYPE nut_output_voltage_nominal_volts gauge
+# UNIT nut_output_voltage_nominal_volts volts
+# HELP nut_output_voltage_nominal_volts Output voltage (nominal). ("output.voltage.nominal")
+nut_output_voltage_nominal_volts{ups="ups-1"} 230.0
+nut_output_voltage_nominal_volts{ups="ups-2"} 220.0
+nut_output_voltage_nominal_volts{ups="ups-3"} 230.0
+# TYPE nut_output_current_amperes gauge
+# UNIT nut_output_current_amperes amperes
+# HELP nut_output_current_amperes Output current. ("output.current")
+nut_output_current_amperes{ups="ups-1"} 1.3
+nut_output_current_amperes{ups="ups-2"} 0.0
+# TYPE nut_output_frequency_hertz gauge
+# UNIT nut_output_frequency_hertz hertz
+# HELP nut_output_frequency_hertz Output frequency. ("output.frequency")
+nut_output_frequency_hertz{ups="ups-1"} 50.0
+nut_output_frequency_hertz{ups="ups-2"} 50.0
+# TYPE nut_output_frequency_nominal_hertz gauge
+# UNIT nut_output_frequency_nominal_hertz hertz
+# HELP nut_output_frequency_nominal_hertz Output frequency (nominal). ("output.frequency.nominal")
+nut_output_frequency_nominal_hertz{ups="ups-1"} 50.0
+# TYPE nut_power_watts gauge
+# UNIT nut_power_watts watts
+# HELP nut_power_watts Apparent power. ("ups.power")
+nut_power_watts{ups="ups-1"} 302.0
+# TYPE nut_power_nominal_watts gauge
+# UNIT nut_power_nominal_watts watts
+# HELP nut_power_nominal_watts Apparent power (nominal). ("ups.power.nominal")
+nut_power_nominal_watts{ups="ups-1"} 1400.0
+# TYPE nut_real_power_nominal_watts gauge
+# UNIT nut_real_power_nominal_watts watts
+# HELP nut_real_power_nominal_watts Real power (nominal). ("ups.realpower.nominal")
+nut_real_power_nominal_watts{ups="ups-4"} 2200.0
+# TYPE nut_status gauge
+# UNIT nut_status 
+# HELP nut_status UPS status. Unknown (0), on line (1, "OL"), on battery (2, "OB"), or low battery (3, "LB"). (Deprecated, use nut_ups_status instead.) ("ups.status")
+nut_status{ups="ups-1"} 1
+nut_status{ups="ups-2"} 1
+nut_status{ups="ups-3"} 1
+nut_status{ups="ups-4"} 1
+nut_status{ups="ups-5"} 1
+# TYPE nut_battery_volts gauge
+# UNIT nut_battery_volts volts
+# HELP nut_battery_volts Battery voltage. (Deprecated, use nut_battery_voltage_volts instead.) ("battery.voltage")
+nut_battery_volts{ups="ups-1"} 40.1
+nut_battery_volts{ups="ups-2"} 27.5
+nut_battery_volts{ups="ups-3"} 13.85
+nut_battery_volts{ups="ups-4"} 260.0
+nut_battery_volts{ups="ups-5"} 13.6
+# TYPE nut_input_volts gauge
+# UNIT nut_input_volts volts
+# HELP nut_input_volts Input voltage. (Deprecated, use nut_input_voltage_volts instead.) ("input.voltage")
+nut_input_volts{ups="ups-1"} 230.0
+nut_input_volts{ups="ups-2"} 234.7
+nut_input_volts{ups="ups-3"} 230.4
+nut_input_volts{ups="ups-4"} 238.7
+nut_input_volts{ups="ups-5"} 209.3
+# TYPE nut_output_volts gauge
+# UNIT nut_output_volts volts
+# HELP nut_output_volts Output voltage. (Deprecated, use nut_output_voltage_volts instead.) ("output.voltage")
+nut_output_volts{ups="ups-1"} 230.0
+nut_output_volts{ups="ups-2"} 234.7
+nut_output_volts{ups="ups-3"} 230.4
+nut_output_volts{ups="ups-4"} 237.2
+nut_output_volts{ups="ups-5"} 246.9
+# EOF

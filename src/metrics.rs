@@ -1,554 +1,197 @@
-use std::collections::HashMap;
+//! Definitions of all exported metrics, in output order.
 
-use lazy_static::lazy_static;
+/// How the samples of a metric are produced.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+    /// `nut_exporter_info`: version of the exporter
+    ExporterInfo,
+    /// `nut_server_info` and `nut_info`: version of the NUT server
+    ServerInfo,
+    /// `nut_ups_info`: metadata of each UPS as labels
+    UpsInfo,
+    /// `nut_ups_status`: one sample per known status
+    UpsStatus,
+    /// One sample per UPS that has the NUT variable, converted as given
+    Gauge(Value),
+}
 
-pub type VarMap = HashMap<String, String>;
-pub type UpsVarMap = HashMap<String, VarMap>;
-pub type NutVersion = String;
-
-pub const UPS_DESCRIPTION_PSEUDOVAR: &str = "_description";
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum VarTransform {
-    None,
+/// Conversion of a NUT variable to a sample value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Value {
+    Float,
+    Integer,
+    /// 0-100 to 0-1
     Percentage,
+    /// Unknown (0), enabled (1), disabled (2) or muted (3)
     BeeperStatus,
+    /// Unknown (0), OL (1), OB (2) or LB (3)
     OldUpsStatus,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Metric {
-    pub metric: &'static str,
-    pub help: &'static str,
-    pub type_: &'static str,
+    pub name: &'static str,
+    pub kind: Kind,
     pub unit: &'static str,
     pub nut_var: &'static str,
-    pub var_transform: VarTransform,
-    pub is_integer: bool,
+    pub help: &'static str,
 }
 
-pub const UPS_STATUS_ELEMENTS: [&str; 11] = [
-    "OL",       // online
-    "OB",       // on battery
-    "LB",       // low battery (critical)
-    "CHRG",     // charging
-    "RB",       // replace battery
-    "FSD",      // forced shutdown
-    "BYPASS",   // battery bypass
-    "SD",       // shutdown
-    "CP",       // cable power
-    "BOOST",    // boosted voltage
-    "OFF",      // off
+impl Metric {
+    pub fn type_name(&self) -> &'static str {
+        match self.kind {
+            Kind::ExporterInfo | Kind::ServerInfo | Kind::UpsInfo => "info",
+            Kind::UpsStatus => "stateset",
+            Kind::Gauge(_) => "gauge",
+        }
+    }
+}
+
+const fn special(name: &'static str, kind: Kind, nut_var: &'static str, help: &'static str) -> Metric {
+    Metric { name, kind, unit: "", nut_var, help }
+}
+
+const fn gauge(
+    name: &'static str,
+    nut_var: &'static str,
+    unit: &'static str,
+    value: Value,
+    help: &'static str,
+) -> Metric {
+    Metric { name, kind: Kind::Gauge(value), unit, nut_var, help }
+}
+
+/// Statuses of `nut_ups_status`, with their description (`ups.status` is a list of them).
+pub const UPS_STATUSES: [(&str, &str); 11] = [
+    ("OL", "Online"),
+    ("OB", "On battery"),
+    ("LB", "Low battery (critical)"),
+    ("CHRG", "Charging"),
+    ("RB", "Replace battery"),
+    ("FSD", "Forced shutdown"),
+    ("BYPASS", "Battery bypass"),
+    ("SD", "Shutdown"),
+    ("CP", "Cable power"),
+    ("BOOST", "Boosted voltage"),
+    ("OFF", "Off"),
 ];
 
-// Special metrics
-pub const EXPORTER_INFO_METRIC: Metric = Metric {
-    metric: "nut_exporter_info",
-    help: "Metadata about the exporter.",
-    type_: "info",
-    unit: "",
-    nut_var: "",
-    var_transform: VarTransform::None,
-    is_integer: true,
-};
-pub const SERVER_INFO_METRIC: Metric = Metric {
-    metric: "nut_server_info",
-    help: "Metadata about the NUT server.",
-    type_: "info",
-    unit: "",
-    nut_var: "",
-    var_transform: VarTransform::None,
-    is_integer: true,
-};
-pub const UPS_INFO_METRIC: Metric = Metric {
-    metric: "nut_ups_info",
-    help: "Metadata about the UPS.",
-    type_: "info",
-    unit: "",
-    nut_var: "",
-    var_transform: VarTransform::None,
-    is_integer: true,
-};
-pub const UPS_STATUS_METRIC: Metric = Metric {
-    metric: "nut_ups_status",
-    help: "UPS status. Check for a specific status with the \"status\" label.",
-    type_: "stateset",
-    unit: "",
-    nut_var: "ups.status",
-    var_transform: VarTransform::None,
-    is_integer: true,
-};
-// Deprecated special metrics
-pub const OLD_SERVER_INFO_METRIC: Metric = Metric {
-    metric: "nut_info",
-    help: "Metadata about the NUT server. (Deprecated, use nut_server_info instead.)",
-    type_: "info",
-    unit: "",
-    nut_var: "",
-    var_transform: VarTransform::None,
-    is_integer: true,
-};
-
-// Basic metrics
-pub static BASIC_METRICS: [Metric; 44] = [
-    // Status, uptime, load
-    Metric {
-        metric: "nut_beeper_status",
-        help: "If the beeper is enabled. Unknown (0), enabled (1), disabled (2) or muted (3).",
-        type_: "gauge",
-        unit: "",
-        nut_var: "ups.beeper.status",
-        var_transform: VarTransform::BeeperStatus,
-        is_integer: true,
-    },
-    Metric {
-        metric: "nut_uptime_seconds",
-        help: "Device uptime.",
-        type_: "gauge",
-        unit: "seconds",
-        nut_var: "device.uptime",
-        var_transform: VarTransform::None,
-        is_integer: true,
-    },
-    Metric {
-        metric: "nut_load",
-        help: "Load. (0-1)",
-        type_: "gauge",
-        unit: "",
-        nut_var: "ups.load",
-        var_transform: VarTransform::Percentage,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_temperature_celsius",
-        help: "UPS temperature",
-        type_: "gauge",
-        unit: "celsius",
-        nut_var: "ups.temperature",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    // Battery
-    Metric {
-        metric: "nut_battery_charge",
-        help: "Battery level. (0-1)",
-        type_: "gauge",
-        unit: "",
-        nut_var: "battery.charge",
-        var_transform: VarTransform::Percentage,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_battery_charge_low",
-        help: "Battery level threshold for low state. (0-1)",
-        type_: "gauge",
-        unit: "",
-        nut_var: "battery.charge.low",
-        var_transform: VarTransform::Percentage,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_battery_charge_warning",
-        help: "Battery level threshold for warning state. (0-1)",
-        type_: "gauge",
-        unit: "",
-        nut_var: "battery.charge.warning",
-        var_transform: VarTransform::Percentage,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_battery_charge_restart",
-        help: "Battery level threshold for restarting after power-off. (0-1)",
-        type_: "gauge",
-        unit: "",
-        nut_var: "battery.charge.restart",
-        var_transform: VarTransform::Percentage,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_battery_runtime_seconds",
-        help: "Battery runtime.",
-        type_: "gauge",
-        unit: "seconds",
-        nut_var: "battery.runtime",
-        var_transform: VarTransform::None,
-        is_integer: true,
-    },
-    Metric {
-        metric: "nut_battery_runtime_low_seconds",
-        help: "Battery runtime threshold for state low.",
-        type_: "gauge",
-        unit: "seconds",
-        nut_var: "battery.runtime.low",
-        var_transform: VarTransform::None,
-        is_integer: true,
-    },
-    Metric {
-        metric: "nut_battery_runtime_restart_seconds",
-        help: "Battery runtime threshold for restart after power-off.",
-        type_: "gauge",
-        unit: "seconds",
-        nut_var: "battery.runtime.restart",
-        var_transform: VarTransform::None,
-        is_integer: true,
-    },
-    Metric {
-        metric: "nut_delay_shutdown_seconds",
-        help: "Interval to wait after shutdown with delay command.",
-        type_: "gauge",
-        unit: "seconds",
-        nut_var: "ups.delay.shutdown",
-        var_transform: VarTransform::None,
-        is_integer: true,
-    },
-    Metric {
-        metric: "nut_delay_start_seconds",
-        help: "Interval to wait before (re)starting the load.",
-        type_: "gauge",
-        unit: "seconds",
-        nut_var: "ups.delay.start",
-        var_transform: VarTransform::None,
-        is_integer: true,
-    },
-    Metric {
-        metric: "nut_battery_voltage_volts",
-        help: "Battery voltage.",
-        type_: "gauge",
-        unit: "volts",
-        nut_var: "battery.voltage",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_battery_voltage_nominal_volts",
-        help: "Battery voltage (nominal).",
-        type_: "gauge",
-        unit: "volts",
-        nut_var: "battery.voltage.nominal",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_battery_voltage_high_volts",
-        help: "Battery voltage for full (charge level calculation).",
-        type_: "gauge",
-        unit: "volts",
-        nut_var: "battery.voltage.high",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_battery_voltage_low_volts",
-        help: "Battery voltage for empty (charge level calculation).",
-        type_: "gauge",
-        unit: "volts",
-        nut_var: "battery.voltage.low",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_battery_temperature_celsius",
-        help: "Battery temperature.",
-        type_: "gauge",
-        unit: "celsius",
-        nut_var: "battery.temperature",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    // Input
-    Metric {
-        metric: "nut_input_voltage_volts",
-        help: "Input voltage.",
-        type_: "gauge",
-        unit: "volts",
-        nut_var: "input.voltage",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_input_voltage_nominal_volts",
-        help: "Input voltage (nominal).",
-        type_: "gauge",
-        unit: "volts",
-        nut_var: "input.voltage.nominal",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_input_voltage_minimum_volts",
-        help: "Input voltage (minimum seen).",
-        type_: "gauge",
-        unit: "volts",
-        nut_var: "input.voltage.minimum",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_input_voltage_maximum_volts",
-        help: "Input voltage (maximum seen).",
-        type_: "gauge",
-        unit: "volts",
-        nut_var: "input.voltage.maximum",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_input_transfer_low_volts",
-        help: "Input lower transfer threshold.",
-        type_: "gauge",
-        unit: "volts",
-        nut_var: "input.transfer.low",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_input_transfer_high_volts",
-        help: "Input upper transfer threshold.",
-        type_: "gauge",
-        unit: "volts",
-        nut_var: "input.transfer.high",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_input_current_amperes",
-        help: "Input current.",
-        type_: "gauge",
-        unit: "amperes",
-        nut_var: "input.current",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_input_current_nominal_amperes",
-        help: "Input current (nominal).",
-        type_: "gauge",
-        unit: "amperes",
-        nut_var: "input.current.nominal",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_input_frequency_hertz",
-        help: "Input frequency.",
-        type_: "gauge",
-        unit: "hertz",
-        nut_var: "input.frequency",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_input_frequency_nominal_hertz",
-        help: "Input frequency (nominal).",
-        type_: "gauge",
-        unit: "hertz",
-        nut_var: "input.frequency.nominal",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_input_frequency_low_hertz",
-        help: "Input frequency (low).",
-        type_: "gauge",
-        unit: "hertz",
-        nut_var: "input.frequency.low",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_input_frequency_high_hertz",
-        help: "Input frequency (high).",
-        type_: "gauge",
-        unit: "hertz",
-        nut_var: "input.frequency.high",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    // Output
-    Metric {
-        metric: "nut_output_voltage_volts",
-        help: "Output voltage.",
-        type_: "gauge",
-        unit: "volts",
-        nut_var: "output.voltage",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_output_voltage_nominal_volts",
-        help: "Output voltage (nominal).",
-        type_: "gauge",
-        unit: "volts",
-        nut_var: "output.voltage.nominal",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_output_current_amperes",
-        help: "Output current.",
-        type_: "gauge",
-        unit: "amperes",
-        nut_var: "output.current",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_output_current_nominal_amperes",
-        help: "Output current (nominal).",
-        type_: "gauge",
-        unit: "amperes",
-        nut_var: "output.current.nominal",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_output_frequency_hertz",
-        help: "Output frequency.",
-        type_: "gauge",
-        unit: "hertz",
-        nut_var: "output.frequency",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_output_frequency_nominal_hertz",
-        help: "Output frequency (nominal).",
-        type_: "gauge",
-        unit: "hertz",
-        nut_var: "output.frequency.nominal",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    // Power
-    Metric {
-        metric: "nut_power_watts",
-        help: "Apparent power.",
-        type_: "gauge",
-        unit: "watts",
-        nut_var: "ups.power",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_power_nominal_watts",
-        help: "Apparent power (nominal).",
-        type_: "gauge",
-        unit: "watts",
-        nut_var: "ups.power.nominal",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_real_power_watts",
-        help: "Real power.",
-        type_: "gauge",
-        unit: "watts",
-        nut_var: "ups.realpower",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_real_power_nominal_watts",
-        help: "Real power (nominal).",
-        type_: "gauge",
-        unit: "watts",
-        nut_var: "ups.realpower.nominal",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
+/// Labels of `nut_ups_info` taken from NUT variables (the description comes from `LIST UPS`).
+pub const UPS_INFO_LABELS: [(&str, &str); 17] = [
+    ("description2", "device.description"),
+    ("device_type", "device.type"),
+    ("location", "device.location"),
+    ("manufacturer", "device.mfr"),
+    ("manufacturing_date", "device.mfr.date"),
+    ("model", "device.model"),
+    ("battery_type", "battery.type"),
+    ("driver", "driver.name"),
+    ("driver_version", "driver.version"),
+    ("driver_version_internal", "driver.version.internal"),
+    ("driver_version_data", "driver.version.data"),
+    ("usb_vendor_id", "ups.vendorid"),
+    ("usb_product_id", "ups.productid"),
+    ("ups_firmware", "ups.firmware"),
+    ("ups_type", "ups.type"),
     // Deprecated
-    Metric {
-        metric: "nut_status",
-        help: "UPS status. Unknown (0), on line (1, \"OL\"), on battery (2, \"OB\"), or low battery (3, \"LB\"). (Deprecated, use nut_ups_status instead.)",
-        type_: "gauge",
-        unit: "",
-        nut_var: "ups.status",
-        var_transform: VarTransform::OldUpsStatus,
-        is_integer: true,
-    },
-    Metric {
-        metric: "nut_battery_volts",
-        help: "Battery voltage. (Deprecated, use nut_battery_voltage_volts instead.)",
-        type_: "gauge",
-        unit: "volts",
-        nut_var: "battery.voltage",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_input_volts",
-        help: "Input voltage. (Deprecated, use nut_input_voltage_volts instead.)",
-        type_: "gauge",
-        unit: "volts",
-        nut_var: "input.voltage",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
-    Metric {
-        metric: "nut_output_volts",
-        help: "Output voltage. (Deprecated, use nut_output_voltage_volts instead.)",
-        type_: "gauge",
-        unit: "volts",
-        nut_var: "output.voltage",
-        var_transform: VarTransform::None,
-        is_integer: false,
-    },
+    ("type", "device.type"),
+    ("nut_version", "driver.version"),
 ];
 
-lazy_static! {
-    // Contains all metrics names, in insertion order
-    pub static ref METRIC_NAMES: Vec<&'static str> = {
-        let mut vec: Vec<&'static str> = Vec::new();
-        vec.push(EXPORTER_INFO_METRIC.metric);
-        vec.push(SERVER_INFO_METRIC.metric);
-        vec.push(UPS_INFO_METRIC.metric);
-        vec.push(OLD_SERVER_INFO_METRIC.metric);
-        vec.push(UPS_STATUS_METRIC.metric);
-        for metric in BASIC_METRICS.iter() {
-            vec.push(metric.metric);
-        }
-        vec
-    };
+#[rustfmt::skip]
+pub const METRICS: &[Metric] = &[
+    special("nut_exporter_info", Kind::ExporterInfo, "", "Metadata about the exporter."),
+    special("nut_server_info", Kind::ServerInfo, "", "Metadata about the NUT server."),
+    special("nut_ups_info", Kind::UpsInfo, "", "Metadata about the UPS."),
+    special("nut_info", Kind::ServerInfo, "", "Metadata about the NUT server. (Deprecated, use nut_server_info instead.)"),
+    special("nut_ups_status", Kind::UpsStatus, "ups.status", "UPS status. Check for a specific status with the \"status\" label."),
+    // Status, uptime, load
+    gauge("nut_beeper_status", "ups.beeper.status", "", Value::BeeperStatus, "If the beeper is enabled. Unknown (0), enabled (1), disabled (2) or muted (3)."),
+    gauge("nut_uptime_seconds", "device.uptime", "seconds", Value::Integer, "Device uptime."),
+    gauge("nut_load", "ups.load", "", Value::Percentage, "Load. (0-1)"),
+    gauge("nut_temperature_celsius", "ups.temperature", "celsius", Value::Float, "UPS temperature"),
+    // Battery
+    gauge("nut_battery_charge", "battery.charge", "", Value::Percentage, "Battery level. (0-1)"),
+    gauge("nut_battery_charge_low", "battery.charge.low", "", Value::Percentage, "Battery level threshold for low state. (0-1)"),
+    gauge("nut_battery_charge_warning", "battery.charge.warning", "", Value::Percentage, "Battery level threshold for warning state. (0-1)"),
+    gauge("nut_battery_charge_restart", "battery.charge.restart", "", Value::Percentage, "Battery level threshold for restarting after power-off. (0-1)"),
+    gauge("nut_battery_runtime_seconds", "battery.runtime", "seconds", Value::Integer, "Battery runtime."),
+    gauge("nut_battery_runtime_low_seconds", "battery.runtime.low", "seconds", Value::Integer, "Battery runtime threshold for state low."),
+    gauge("nut_battery_runtime_restart_seconds", "battery.runtime.restart", "seconds", Value::Integer, "Battery runtime threshold for restart after power-off."),
+    gauge("nut_delay_shutdown_seconds", "ups.delay.shutdown", "seconds", Value::Integer, "Interval to wait after shutdown with delay command."),
+    gauge("nut_delay_start_seconds", "ups.delay.start", "seconds", Value::Integer, "Interval to wait before (re)starting the load."),
+    gauge("nut_battery_voltage_volts", "battery.voltage", "volts", Value::Float, "Battery voltage."),
+    gauge("nut_battery_voltage_nominal_volts", "battery.voltage.nominal", "volts", Value::Float, "Battery voltage (nominal)."),
+    gauge("nut_battery_voltage_high_volts", "battery.voltage.high", "volts", Value::Float, "Battery voltage for full (charge level calculation)."),
+    gauge("nut_battery_voltage_low_volts", "battery.voltage.low", "volts", Value::Float, "Battery voltage for empty (charge level calculation)."),
+    gauge("nut_battery_temperature_celsius", "battery.temperature", "celsius", Value::Float, "Battery temperature."),
+    // Input
+    gauge("nut_input_voltage_volts", "input.voltage", "volts", Value::Float, "Input voltage."),
+    gauge("nut_input_voltage_nominal_volts", "input.voltage.nominal", "volts", Value::Float, "Input voltage (nominal)."),
+    gauge("nut_input_voltage_minimum_volts", "input.voltage.minimum", "volts", Value::Float, "Input voltage (minimum seen)."),
+    gauge("nut_input_voltage_maximum_volts", "input.voltage.maximum", "volts", Value::Float, "Input voltage (maximum seen)."),
+    gauge("nut_input_transfer_low_volts", "input.transfer.low", "volts", Value::Float, "Input lower transfer threshold."),
+    gauge("nut_input_transfer_high_volts", "input.transfer.high", "volts", Value::Float, "Input upper transfer threshold."),
+    gauge("nut_input_current_amperes", "input.current", "amperes", Value::Float, "Input current."),
+    gauge("nut_input_current_nominal_amperes", "input.current.nominal", "amperes", Value::Float, "Input current (nominal)."),
+    gauge("nut_input_frequency_hertz", "input.frequency", "hertz", Value::Float, "Input frequency."),
+    gauge("nut_input_frequency_nominal_hertz", "input.frequency.nominal", "hertz", Value::Float, "Input frequency (nominal)."),
+    gauge("nut_input_frequency_low_hertz", "input.frequency.low", "hertz", Value::Float, "Input frequency (low)."),
+    gauge("nut_input_frequency_high_hertz", "input.frequency.high", "hertz", Value::Float, "Input frequency (high)."),
+    // Output
+    gauge("nut_output_voltage_volts", "output.voltage", "volts", Value::Float, "Output voltage."),
+    gauge("nut_output_voltage_nominal_volts", "output.voltage.nominal", "volts", Value::Float, "Output voltage (nominal)."),
+    gauge("nut_output_current_amperes", "output.current", "amperes", Value::Float, "Output current."),
+    gauge("nut_output_current_nominal_amperes", "output.current.nominal", "amperes", Value::Float, "Output current (nominal)."),
+    gauge("nut_output_frequency_hertz", "output.frequency", "hertz", Value::Float, "Output frequency."),
+    gauge("nut_output_frequency_nominal_hertz", "output.frequency.nominal", "hertz", Value::Float, "Output frequency (nominal)."),
+    // Power
+    gauge("nut_power_watts", "ups.power", "watts", Value::Float, "Apparent power."),
+    gauge("nut_power_nominal_watts", "ups.power.nominal", "watts", Value::Float, "Apparent power (nominal)."),
+    gauge("nut_real_power_watts", "ups.realpower", "watts", Value::Float, "Real power."),
+    gauge("nut_real_power_nominal_watts", "ups.realpower.nominal", "watts", Value::Float, "Real power (nominal)."),
+    // Deprecated
+    gauge("nut_status", "ups.status", "", Value::OldUpsStatus, "UPS status. Unknown (0), on line (1, \"OL\"), on battery (2, \"OB\"), or low battery (3, \"LB\"). (Deprecated, use nut_ups_status instead.)"),
+    gauge("nut_battery_volts", "battery.voltage", "volts", Value::Float, "Battery voltage. (Deprecated, use nut_battery_voltage_volts instead.)"),
+    gauge("nut_input_volts", "input.voltage", "volts", Value::Float, "Input voltage. (Deprecated, use nut_input_voltage_volts instead.)"),
+    gauge("nut_output_volts", "output.voltage", "volts", Value::Float, "Output voltage. (Deprecated, use nut_output_voltage_volts instead.)"),
+];
 
-    // Contains all metrics, indexed by metric name
-    pub static ref METRICS: HashMap<&'static str, &'static Metric> = {
-        let mut map: HashMap<&'static str, &'static Metric> = HashMap::new();
-        map.insert(EXPORTER_INFO_METRIC.metric, &EXPORTER_INFO_METRIC);
-        map.insert(SERVER_INFO_METRIC.metric, &SERVER_INFO_METRIC);
-        map.insert(UPS_INFO_METRIC.metric, &UPS_INFO_METRIC);
-        map.insert(OLD_SERVER_INFO_METRIC.metric, &OLD_SERVER_INFO_METRIC);
-        map.insert(UPS_STATUS_METRIC.metric, &UPS_STATUS_METRIC);
-        for metric in BASIC_METRICS.iter() {
-            map.insert(metric.metric, metric);
-        }
-        map
-    };
-
-    // Contains all metrics based on NUT vars, indexed by var
-    pub static ref VAR_METRICS: HashMap<&'static str, Vec<&'static Metric>> = {
-        let mut map: HashMap<&'static str, Vec<&'static Metric>> = HashMap::new();
-        for metric in BASIC_METRICS.iter() {
-            map.entry(metric.nut_var).or_default().push(metric);
-        }
-        map
-    };
+/// The metrics as a Markdown table, for `metrics.md` (`PRINT_METRICS_AND_EXIT=true`).
+pub fn markdown_table() -> String {
+    let mut table = String::from("| Metric | NUT Var | Unit | Description |\n| - | - | - | - |\n");
+    for metric in METRICS {
+        let row = format!("| `{}` | `{}` | `{}` | {} |\n", metric.name, metric.nut_var, metric.unit, metric.help);
+        table.push_str(&row.replace("``", ""));
+    }
+    table
 }
 
-// Print metrics as Markdown table.
-pub fn print_metrics() {
-    println!("| Metric | NUT Var | Unit | Description |");
-    println!("| - | - | - | - |");
-    let print_metric = |metric: &Metric| {
-        let row = format!("| `{}` | `{}` | `{}` | {} |", metric.metric, metric.nut_var, metric.unit, metric.help).replace("``", "");
-        println!("{}", row)
-    };
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
 
-    print_metric(&EXPORTER_INFO_METRIC);
-    print_metric(&SERVER_INFO_METRIC);
-    print_metric(&UPS_INFO_METRIC);
-    print_metric(&OLD_SERVER_INFO_METRIC);
-    print_metric(&UPS_STATUS_METRIC);
-    for metric in BASIC_METRICS.iter() {
-        print_metric(metric);
+    use super::*;
+
+    #[test]
+    fn names_are_unique() {
+        let names: HashSet<_> = METRICS.iter().map(|m| m.name).collect();
+        assert_eq!(names.len(), METRICS.len());
+    }
+
+    #[test]
+    fn gauges_have_a_nut_var() {
+        for metric in METRICS.iter().filter(|m| matches!(m.kind, Kind::Gauge(_))) {
+            assert!(!metric.nut_var.is_empty(), "{}", metric.name);
+        }
+    }
+
+    #[test]
+    fn metrics_md_is_up_to_date() {
+        let doc = include_str!("../metrics.md").replace("\r\n", "\n");
+        assert!(
+            doc.contains(&markdown_table()),
+            "metrics.md: update the table with PRINT_METRICS_AND_EXIT=true cargo run"
+        );
     }
 }

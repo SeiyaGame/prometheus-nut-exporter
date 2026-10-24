@@ -1,3 +1,0 @@
-BEGIN LIST UPS
-UPS ups-1 "desc 1"
-END LIST UPS
