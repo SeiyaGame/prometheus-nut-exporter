@@ -16,7 +16,7 @@ use tower::ServiceExt;
 async fn get(uri: &str, credentials: Option<(&str, &str)>) -> (StatusCode, Option<String>) {
     // Lowest bcrypt cost: the tests stay fast
     let hash = bcrypt::hash("secret", 4).unwrap();
-    let auth = Auth::from_yaml(&format!("basic_auth_users:\n  prometheus: {hash}\n")).unwrap().unwrap();
+    let auth = Auth::from_yaml(&format!("basic_auth_users:\n  scraper: {hash}\n")).unwrap().unwrap();
     let app = server::router(Config::default(), Some(Arc::new(auth)))
         .layer(MockConnectInfo(SocketAddr::from(([127, 0, 0, 1], 1))));
 
@@ -33,14 +33,14 @@ async fn get(uri: &str, credentials: Option<(&str, &str)>) -> (StatusCode, Optio
 #[tokio::test]
 async fn metrics_need_credentials() {
     assert_eq!(get("/nut?target=127.0.0.1:1", None).await, (StatusCode::UNAUTHORIZED, Some("Basic".into())));
-    assert_eq!(get("/nut?target=127.0.0.1:1", Some(("prometheus", "wrong"))).await.0, StatusCode::UNAUTHORIZED);
+    assert_eq!(get("/nut?target=127.0.0.1:1", Some(("scraper", "wrong"))).await.0, StatusCode::UNAUTHORIZED);
     assert_eq!(get("/nut?target=127.0.0.1:1", Some(("nobody", "secret"))).await.0, StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
 async fn valid_credentials_reach_the_scrape() {
     // Authenticated: the scrape runs, and fails as nothing listens on port 1
-    assert_eq!(get("/nut?target=127.0.0.1:1", Some(("prometheus", "secret"))).await.0, StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(get("/nut?target=127.0.0.1:1", Some(("scraper", "secret"))).await.0, StatusCode::SERVICE_UNAVAILABLE);
 }
 
 #[tokio::test]

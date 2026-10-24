@@ -17,8 +17,6 @@ use serde::de::IgnoredAny;
 use subtle::ConstantTimeEq;
 use tokio::sync::Semaphore;
 
-/// Cost of the hashes made by `hash-password`, as in the Prometheus documentation
-pub const HASH_COST: u32 = 10;
 /// A bcrypt check takes ~50 ms of CPU: limits the load of a brute force (and the threads used)
 const MAX_CONCURRENT_CHECKS: usize = 2;
 
@@ -61,15 +59,14 @@ impl Auth {
             return Err("http_server_config is not supported".into());
         }
 
-        let mut cost = HASH_COST;
+        // Any cost of the users: the dummy hash takes as long to check as theirs
+        let mut cost = None;
         for (user, hash) in &config.basic_auth_users {
             let parts: bcrypt::HashParts =
                 hash.parse().map_err(|_| format!("basic_auth_users: the password of {user:?} is not a bcrypt hash"))?;
-            cost = parts.get_cost();
+            cost = Some(parts.get_cost());
         }
-        if config.basic_auth_users.is_empty() {
-            return Ok(None);
-        }
+        let Some(cost) = cost else { return Ok(None) };
 
         Ok(Some(Auth {
             users: config.basic_auth_users,
@@ -130,10 +127,6 @@ pub async fn require(State(auth): State<Arc<Auth>>, request: Request, next: Next
     }
 }
 
-pub fn hash_password(password: &str) -> Result<String, bcrypt::BcryptError> {
-    bcrypt::hash(password, HASH_COST)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -151,11 +144,11 @@ mod tests {
 
     #[tokio::test]
     async fn checks_the_password() {
-        let auth = auth_for("prometheus", "secret");
-        assert!(auth.check(&basic("prometheus", "secret")).await);
+        let auth = auth_for("scraper", "secret");
+        assert!(auth.check(&basic("scraper", "secret")).await);
         // Second time from the cache
-        assert!(auth.check(&basic("prometheus", "secret")).await);
-        assert!(!auth.check(&basic("prometheus", "wrong")).await);
+        assert!(auth.check(&basic("scraper", "secret")).await);
+        assert!(!auth.check(&basic("scraper", "wrong")).await);
         assert!(!auth.check(&basic("other", "secret")).await);
         assert!(!auth.check(&HeaderMap::new()).await);
     }
@@ -180,19 +173,14 @@ mod tests {
         assert!(err("basic_auth_user:\n  a: b\n").contains("unknown field"));
     }
 
-    #[test]
-    fn readme_example_is_valid() {
+    /// The README example comes from `htpasswd` (`$2y$` hashes) for the password "changeme"
+    #[tokio::test]
+    async fn readme_example_is_valid() {
         let readme = include_str!("../README.md");
         let example =
             readme.lines().skip_while(|line| !line.starts_with("basic_auth_users:")).take(2).collect::<Vec<_>>();
         let auth = Auth::from_yaml(&example.join("\n")).unwrap().unwrap();
-        assert!(bcrypt::verify("changeme", &auth.users["prometheus"]).unwrap());
-    }
-
-    #[test]
-    fn hashes_are_valid() {
-        let hash = hash_password("secret").unwrap();
-        assert!(hash.starts_with("$2b$10$"));
-        assert!(bcrypt::verify("secret", &hash).unwrap());
+        assert!(auth.users["scraper"].starts_with("$2y$"));
+        assert!(auth.check(&basic("scraper", "changeme")).await);
     }
 }

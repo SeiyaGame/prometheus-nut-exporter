@@ -1,9 +1,8 @@
-use std::io::BufRead;
 use std::net::SocketAddr;
 use std::process::ExitCode;
 use std::sync::Arc;
 
-use prometheus_nut_exporter::auth::{self, Auth};
+use prometheus_nut_exporter::auth::Auth;
 use prometheus_nut_exporter::config::{self, Config};
 use prometheus_nut_exporter::{metrics, server};
 use tokio::net::TcpListener;
@@ -12,15 +11,6 @@ use tokio::signal::unix::{SignalKind, signal};
 #[tokio::main]
 async fn main() -> ExitCode {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(config::DEFAULT_LOG_LEVEL)).init();
-
-    match std::env::args().nth(1).as_deref() {
-        None => {}
-        Some("hash-password") => return hash_password(),
-        Some(other) => {
-            eprintln!("Unknown command {other:?}. Usage: prometheus-nut-exporter [hash-password]");
-            return ExitCode::FAILURE;
-        }
-    }
 
     let config = Config::from_env();
     if config.print_metrics_and_exit {
@@ -60,30 +50,6 @@ async fn main() -> ExitCode {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
             log::error!("Server error: {err}");
-            ExitCode::FAILURE
-        }
-    }
-}
-
-/// Reads a password on stdin and prints its bcrypt hash, for `basic_auth_users`.
-fn hash_password() -> ExitCode {
-    eprintln!("Password (read from stdin):");
-    let mut password = String::new();
-    if std::io::stdin().lock().read_line(&mut password).is_err() {
-        return ExitCode::FAILURE;
-    }
-    let password = password.trim_end_matches(['\r', '\n']);
-    if password.is_empty() {
-        eprintln!("Empty password.");
-        return ExitCode::FAILURE;
-    }
-    match auth::hash_password(password) {
-        Ok(hash) => {
-            println!("{hash}");
-            ExitCode::SUCCESS
-        }
-        Err(err) => {
-            eprintln!("{err}");
             ExitCode::FAILURE
         }
     }

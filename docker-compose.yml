@@ -13,6 +13,11 @@ services:
       #- RUST_LOG=info
       #- HTTP_ADDRESS=::
       #- HTTP_PORT=9995
+      # Basic authentication (README): users and bcrypt hashes in web-config.yml
+      #- WEB_CONFIG_FILE=/etc/nut-exporter/web-config.yml
+
+    #volumes:
+    #  - ./web-config.yml:/etc/nut-exporter/web-config.yml:ro
 
     ports:
       - "9995:9995/tcp"

@@ -140,23 +140,25 @@ the users are listed in a web config file with a bcrypt hash of their password:
 ```yaml
 # web-config.yml (this example hash is the password "changeme": make your own)
 basic_auth_users:
-  prometheus: $2b$10$PA2tvJhQJXTbUa6wvBUkyO26xz4sv1paOrWFwpBihHsxtQX1xMOiK
+  scraper: $2y$10$LPFETm3SXArl3vMInKxDy.FdMuvPMOImomEJYbmYN0uxWE9kPJDcW
 ```
 
-Generate a hash with the exporter itself (the password is read from stdin):
+Generate a hash with `htpasswd` (package `apache2-utils` on Debian/Ubuntu, `httpd-tools` on Fedora/RHEL,
+`apache2-utils` on Alpine), which asks for the password:
 
 ```bash
-docker run --rm -i ghcr.io/seiyagame/prometheus-nut-exporter:1 hash-password
+htpasswd -nBC 10 "" | tr -d ':\n'; echo
 ```
 
-Then set `WEB_CONFIG_FILE` to the file (in Docker, mount it read-only: see the comments of
-[`docker-compose.hardened.yml`](docker-compose.hardened.yml)), and give the credentials to Prometheus:
+Then set `WEB_CONFIG_FILE` to the file (in Docker, mount it read-only: uncomment `WEB_CONFIG_FILE` and
+`volumes:` in [`docker-compose.yml`](docker-compose.yml) or [`docker-compose.hardened.yml`](docker-compose.hardened.yml)),
+and give the credentials to Prometheus:
 
 ```yaml
 scrape_configs:
   - job_name: "nut"
     basic_auth:
-      username: prometheus
+      username: scraper
       password_file: /etc/prometheus/nut-exporter-password
     # static_configs and relabel_configs as above
 ```
