@@ -24,7 +24,7 @@ case $TARGETPLATFORM in \
 *) false ;; \
 esac \
 && rustup target add $RUST_TARGET \
-&& APP_VERSION="$APP_VERSION" cargo rustc --locked --target=$RUST_TARGET --release -- -C linker=rust-lld \
+&& APP_VERSION="$APP_VERSION" cargo rustc --locked --bin prometheus-nut-exporter --target=$RUST_TARGET --release -- -C linker=rust-lld \
 && mv target/$RUST_TARGET/release/prometheus-nut-exporter .
 
 ## Runtime stage (no RUN: multi-arch images build without QEMU)

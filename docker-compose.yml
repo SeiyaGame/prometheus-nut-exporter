@@ -1,0 +1,14 @@
+# Example: the exporter next to Prometheus. Point the scrape config at nut-exporter:9995
+# (see the README), with the NUT server as the target.
+services:
+  nut-exporter:
+    image: ghcr.io/seiyagame/prometheus-nut-exporter:1
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Paris
+      - HTTP_PATH=/metrics
+      #- RUST_LOG=info
+      #- HTTP_ADDRESS=::
+      #- HTTP_PORT=9995
+    ports:
+      - "9995:9995/tcp"

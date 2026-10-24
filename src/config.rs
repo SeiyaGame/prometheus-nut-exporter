@@ -1,52 +1,93 @@
-use std::net::{IpAddr, Ipv6Addr};
+//! Configuration from environment variables.
 
-#[derive(Debug, Clone)]
+use std::net::{IpAddr, Ipv6Addr};
+use std::str::FromStr;
+
+pub const DEFAULT_LOG_LEVEL: &str = "info";
+pub const DEFAULT_NUT_PORT: u16 = 3493;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Config {
     pub http_address: IpAddr,
     pub http_port: u16,
+    /// Always starts with `/`
     pub http_path: String,
     pub print_metrics_and_exit: bool,
 }
 
-impl Config {
-    pub const DEFAULT_LOG_LEVEL: &'static str = "info";
-    pub const DEFAULT_NUT_PORT: u16 = 3493;
-
-    const DEFAULT_HTTP_ADDRESS: IpAddr = IpAddr::V6(Ipv6Addr::UNSPECIFIED);
-    const DEFAULT_HTTP_PORT: u16 = 9995;
-    const DEFAULT_HTTP_PATH: &'static str = "/nut";
-    const DEFAULT_PRINT_METRICS_AND_EXIT: bool = false;
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            http_address: IpAddr::V6(Ipv6Addr::UNSPECIFIED),
+            http_port: 9995,
+            http_path: "/nut".to_owned(),
+            print_metrics_and_exit: false,
+        }
+    }
 }
 
-pub fn read_config() -> Config {
-    let mut config = Config {
-        http_address: Config::DEFAULT_HTTP_ADDRESS,
-        http_port: Config::DEFAULT_HTTP_PORT,
-        http_path: Config::DEFAULT_HTTP_PATH.to_owned(),
-        print_metrics_and_exit: Config::DEFAULT_PRINT_METRICS_AND_EXIT,
-    };
-
-    if let Ok(http_address_str) = std::env::var("HTTP_ADDRESS") {
-        if let Ok(http_address) = http_address_str.parse::<IpAddr>() {
-            config.http_address = http_address;
-        }
+impl Config {
+    pub fn from_env() -> Self {
+        Self::from_lookup(|name| std::env::var(name).ok())
     }
 
-    if let Ok(http_port_str) = std::env::var("HTTP_PORT") {
-        if let Ok(http_port) = http_port_str.parse::<u16>() {
-            config.http_port = http_port;
+    /// Invalid values are logged and replaced with the default.
+    fn from_lookup(lookup: impl Fn(&str) -> Option<String>) -> Self {
+        let mut config = Config::default();
+        parse_into(&lookup, "HTTP_ADDRESS", &mut config.http_address);
+        parse_into(&lookup, "HTTP_PORT", &mut config.http_port);
+        parse_into(&lookup, "PRINT_METRICS_AND_EXIT", &mut config.print_metrics_and_exit);
+        if let Some(path) = lookup("HTTP_PATH") {
+            let path = path.trim();
+            config.http_path = if path.starts_with('/') { path.to_owned() } else { format!("/{path}") };
         }
+        config
     }
-    if let Ok(http_path) = std::env::var("HTTP_PATH") {
-        if http_path.starts_with('/') {
-            config.http_path = http_path;
-        }
+}
+
+fn parse_into<T: FromStr>(lookup: &impl Fn(&str) -> Option<String>, name: &str, target: &mut T) {
+    let Some(raw) = lookup(name) else { return };
+    match raw.trim().parse() {
+        Ok(value) => *target = value,
+        Err(_) => log::warn!("Ignoring invalid {name}={raw:?}, using the default value."),
     }
-    if let Ok(print_metrics_and_exit_str) = std::env::var("PRINT_METRICS_AND_EXIT") {
-        if let Ok(print_metrics_and_exit) = print_metrics_and_exit_str.parse::<bool>() {
-            config.print_metrics_and_exit = print_metrics_and_exit;
-        }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn config(vars: &[(&str, &str)]) -> Config {
+        Config::from_lookup(|name| vars.iter().find(|(n, _)| *n == name).map(|(_, v)| v.to_string()))
     }
 
-    config
+    #[test]
+    fn defaults() {
+        assert_eq!(config(&[]), Config::default());
+    }
+
+    #[test]
+    fn values() {
+        let config = config(&[
+            ("HTTP_ADDRESS", "127.0.0.1"),
+            ("HTTP_PORT", "9199"),
+            ("HTTP_PATH", "/metrics"),
+            ("PRINT_METRICS_AND_EXIT", "true"),
+        ]);
+        assert_eq!(config.http_address, IpAddr::from([127, 0, 0, 1]));
+        assert_eq!(config.http_port, 9199);
+        assert_eq!(config.http_path, "/metrics");
+        assert!(config.print_metrics_and_exit);
+    }
+
+    #[test]
+    fn path_without_slash() {
+        assert_eq!(config(&[("HTTP_PATH", "metrics")]).http_path, "/metrics");
+    }
+
+    #[test]
+    fn invalid_values_keep_the_default() {
+        let config = config(&[("HTTP_PORT", "99999"), ("HTTP_ADDRESS", "localhost")]);
+        assert_eq!(config, Config::default());
+    }
 }

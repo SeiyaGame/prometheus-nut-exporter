@@ -25,26 +25,11 @@ If you want to test that it's working, run `telnet <nut-server> 3493` and then `
 
 ### Docker
 
-Example `docker-compose.yml`:
+[`docker-compose.yml`](docker-compose.yml):
 
-```yaml
-version: "3.7"
-
-services:
-  nut-exporter:
-    # Stable v1
-    image: ghcr.io/seiyagame/prometheus-nut-exporter:1
-    environment:
-      - TZ=Europe/Oslo
-      - HTTP_PATH=/metrics
-      # Defaults
-      #- RUST_LOG=info
-      #- HTTP_PORT=9995
-      #- HTTP_PATH=/nut
-      #- LOG_REQUESTS_CONSOLE=false
-      #- PRINT_METRICS_AND_EXIT=false
-    ports:
-      - "9995:9995/tcp"
+```bash
+curl -fsSLO https://raw.githubusercontent.com/SeiyaGame/prometheus-nut-exporter/master/docker-compose.yml
+docker compose up -d
 ```
 
 ### Binary
@@ -82,7 +67,9 @@ scrape_configs:
         replacement: nut-exporter:9995
 ```
 
-In the above example, `nut-exporter:9995` is the address and port of the NUT _exporter_ while `nut-server:3493` is the address and port of the NUT _server_ to query through the exporter.
+In the above example, `nut-exporter:9995` is the address and port of the NUT _exporter_ while `nut-server:3493` is the address and port of the NUT _server_ to query through the exporter. Add `metrics_path: /metrics` if the exporter runs with `HTTP_PATH=/metrics`.
+
+A scrape gives up after the `scrape_timeout` sent by Prometheus (10 seconds without it), so an unreachable NUT server makes the scrape fail instead of hanging.
 
 ### Kubernetes Resource Usage
 
@@ -118,11 +105,13 @@ Images are published on `ghcr.io/seiyagame/prometheus-nut-exporter` for `linux/a
 
 ### Environment Variables
 
-- `RUST_LOG` (defaults to `info`): The log level used by the console/STDOUT. Set to `debug` so show HTTP requests and `trace` to show extensive debugging info.
+- `RUST_LOG` (defaults to `info`): The log level used by the console/STDOUT. Set to `debug` to show HTTP requests and failed scrapes, and `trace` to show the NUT protocol exchanges.
 - `HTTP_ADDRESS` (defaults to `::`): The HTTP server will listen on this IP. Set to `127.0.0.1` or `::1` to only allow local access.
 - `HTTP_PORT` (defaults to `9995`): The HTTP server port.
-- `HTTP_PATH` (defaults to `nut`): The HTTP server metrics path. You may want to set it to `/metrics` on new setups to avoid extra Prometheus configuration (not changed here due to compatibility).
-- `PRINT_METRICS_AND_EXIT` (defaults to `false`): Print a Markdown-formatted table consisting of all metrics and then immediately exit. Used mainly for generating documentation.
+- `HTTP_PATH` (defaults to `/nut`): The HTTP server metrics path. You may want to set it to `/metrics` on new setups to avoid extra Prometheus configuration (not changed here due to compatibility).
+- `PRINT_METRICS_AND_EXIT` (defaults to `false`): Print a Markdown-formatted table consisting of all metrics and then immediately exit. Used to update [metrics.md](metrics.md).
+
+Invalid values are ignored with a warning in the log, and the default value is used.
 
 ## Metrics
 
@@ -131,13 +120,28 @@ See [metrics](metrics.md).
 ## Development
 
 ```bash
-cargo run                        # listens on :9995
-manage/check.sh                  # clippy and formatting checks
-manage/integration_test.sh       # scrapes a mock NUT server (needs Python 3 and curl)
+cargo run                        # listens on :9995, e.g. curl 'localhost:9995/nut?target=nut-server'
+cargo fmt && cargo clippy --all-targets -- -D warnings
+cargo test                       # unit tests and tests/exporter.rs
 docker build -t prometheus-nut-exporter .
 ```
 
-The CI (`.github/workflows/ci.yml`) runs the checks and the integration test, builds the static musl binaries
+```
+src/
+  main.rs         startup, shutdown on SIGINT/SIGTERM
+  config.rs       environment variables
+  server.rs       HTTP endpoints (axum), target parsing, scrape timeout
+  nut.rs          NUT protocol client
+  metrics.rs      definitions of all metrics (add new ones here, then update metrics.md)
+  openmetrics.rs  OpenMetrics output
+tests/
+  exporter.rs     end-to-end: fake NUT server serving tests/fixtures/, output compared to expected.txt
+```
+
+`tests/fixtures/` holds answers of real NUT servers. After an intended change of the output,
+`UPDATE_SNAPSHOTS=1 cargo test` rewrites `tests/fixtures/expected.txt`: check its diff before committing.
+
+The CI (`.github/workflows/ci.yml`) runs the checks and the tests, checks the minimum Rust version (`rust-version`), builds the static musl binaries
 for every architecture and packages them in the multi-arch Docker image. Each push to master replaces the `dev`
 pre-release and the `:dev` image. Pushing a `v*` tag publishes the release (binaries, release notes,
 `X.Y.Z`, `X.Y`, `X` and `latest` images).

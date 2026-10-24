@@ -6,17 +6,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Maintained fork of [HON95/prometheus-nut-exporter](https://github.com/HON95/prometheus-nut-exporter).
+The metrics, their labels and the configuration are unchanged.
+
 ### Added
+
+- Static binaries for `amd64`, `arm64`, `armv7`, `armv6` and `386` attached to the releases.
+- Scrape timeout: the one sent by Prometheus (`X-Prometheus-Scrape-Timeout-Seconds`), or 10 seconds.
+- Warning in the log for invalid environment variables (they were silently ignored).
+- `HTTP_PATH` without a leading `/` (`metrics` is `/metrics`).
 
 ### Changed
 
-### Deprecated
-
-### Removed
+- Images are published on `ghcr.io/seiyagame/prometheus-nut-exporter` (no Docker Hub).
+- Floats are written in their shortest exact form (`237.2` instead of `237.19999999999998863`).
+- UPSes are always in the same order (sorted by name).
+- Exits with an error code when the HTTP port cannot be used.
+- Rewritten on axum/hyper 1, with unit and end-to-end tests. Dependencies updated (security advisories).
 
 ### Fixed
 
-### Security
+- Values containing escaped quotes or backslashes (e.g. `"Eaton \"5PX\""`) made the whole scrape fail.
+- The `ups` label of `nut_ups_status` was not escaped.
+- Wrong error message for a malformed `target`.
+- The session is closed with `LOGOUT` after each scrape.
 
 ## [1.2.1] - 2022-08-03
 

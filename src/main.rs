@@ -1,47 +1,45 @@
-mod common;
-mod config;
-mod http_server;
-mod meta;
-mod metrics;
-mod nut_client;
-mod openmetrics_builder;
+use std::net::SocketAddr;
+use std::process::ExitCode;
 
-use tokio::signal::unix::{signal, SignalKind};
-use tokio::sync::broadcast;
+use prometheus_nut_exporter::config::{self, Config};
+use prometheus_nut_exporter::{metrics, server};
+use tokio::net::TcpListener;
+use tokio::signal::unix::{SignalKind, signal};
 
 #[tokio::main]
-async fn main() {
-    // Setup logger
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(config::Config::DEFAULT_LOG_LEVEL)).init();
+async fn main() -> ExitCode {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(config::DEFAULT_LOG_LEVEL)).init();
 
-    // Setup config
-    let config = config::read_config();
+    let config = Config::from_env();
     if config.print_metrics_and_exit {
-        metrics::print_metrics();
-        return;
+        print!("{}", metrics::markdown_table());
+        return ExitCode::SUCCESS;
     }
 
-    // Start server
-    let (shutdown_tx, mut shutdown_rx) = broadcast::channel(1);
-    let server_task = tokio::spawn(http_server::run_server(config, shutdown_tx.subscribe()));
+    let endpoint = SocketAddr::new(config.http_address, config.http_port);
+    let listener = match TcpListener::bind(endpoint).await {
+        Ok(listener) => listener,
+        Err(err) => {
+            log::error!("Failed to listen on http://{endpoint}: {err}");
+            return ExitCode::FAILURE;
+        }
+    };
+    log::info!("Listening on http://{endpoint}{}", config.http_path);
 
-    // Listen for shutdown signals
-    let mut sigint_stream = signal(SignalKind::interrupt()).unwrap();
-    let mut sigterm_stream = signal(SignalKind::terminate()).unwrap();
+    match server::serve(listener, config, shutdown_signal()).await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            log::error!("Server error: {err}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// Resolves on SIGINT or SIGTERM (`docker stop`).
+async fn shutdown_signal() {
+    let mut sigterm = signal(SignalKind::terminate()).expect("SIGTERM handler");
     tokio::select! {
-        _ = shutdown_rx.recv() => {
-            log::debug!("Received internal shutdown signal.");
-        },
-        _ = sigint_stream.recv() => {
-            log::debug!("Received interrupt signal.");
-            shutdown_tx.send(true).unwrap();
-        },
-        _ = sigterm_stream.recv() => {
-            log::debug!("Received termination signal.");
-            shutdown_tx.send(true).unwrap();
-        },
+        _ = tokio::signal::ctrl_c() => log::debug!("Received interrupt signal."),
+        _ = sigterm.recv() => log::debug!("Received termination signal."),
     }
-
-    // Wait for server
-    server_task.await.unwrap();
 }
