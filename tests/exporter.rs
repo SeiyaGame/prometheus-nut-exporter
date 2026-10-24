@@ -49,7 +49,7 @@ async fn fake_nut_server() -> SocketAddr {
 
 async fn get(uri: &str, accept: &str) -> (StatusCode, String, String) {
     let request = Request::get(uri).header(header::ACCEPT, accept).body(Body::empty()).unwrap();
-    let app = server::router(Config::default()).layer(MockConnectInfo(SocketAddr::from(([127, 0, 0, 1], 1))));
+    let app = server::router(Config::default(), None).layer(MockConnectInfo(SocketAddr::from(([127, 0, 0, 1], 1))));
     let response = app.oneshot(request).await.unwrap();
     let status = response.status();
     let content_type = response.headers().get(header::CONTENT_TYPE).map_or("", |v| v.to_str().unwrap()).to_owned();

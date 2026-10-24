@@ -1,6 +1,8 @@
 use std::net::SocketAddr;
 use std::process::ExitCode;
+use std::sync::Arc;
 
+use prometheus_nut_exporter::auth::Auth;
 use prometheus_nut_exporter::config::{self, Config};
 use prometheus_nut_exporter::{metrics, server};
 use tokio::net::TcpListener;
@@ -16,6 +18,24 @@ async fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
+    let auth = match &config.web_config_file {
+        None => None,
+        Some(path) => match Auth::load(path) {
+            Ok(Some(auth)) => {
+                log::info!("Basic authentication enabled ({} users).", auth.user_count());
+                Some(Arc::new(auth))
+            }
+            Ok(None) => {
+                log::warn!("{}: no basic_auth_users, the metrics are not protected.", path.display());
+                None
+            }
+            Err(err) => {
+                log::error!("Invalid web config file {err}");
+                return ExitCode::FAILURE;
+            }
+        },
+    };
+
     let endpoint = SocketAddr::new(config.http_address, config.http_port);
     let listener = match TcpListener::bind(endpoint).await {
         Ok(listener) => listener,
@@ -26,7 +46,7 @@ async fn main() -> ExitCode {
     };
     log::info!("Listening on http://{endpoint}{}", config.http_path);
 
-    match server::serve(listener, config, shutdown_signal()).await {
+    match server::serve(listener, config, auth, shutdown_signal()).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
             log::error!("Server error: {err}");

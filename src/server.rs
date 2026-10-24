@@ -15,6 +15,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use tokio::net::TcpListener;
 
+use crate::auth::{self, Auth};
 use crate::config::{Config, DEFAULT_NUT_PORT};
 use crate::{APP_AUTHOR, APP_NAME, APP_VERSION, nut, openmetrics};
 
@@ -29,19 +30,25 @@ const SCRAPE_TIMEOUT_MARGIN: Duration = Duration::from_millis(500);
 pub async fn serve(
     listener: TcpListener,
     config: Config,
+    auth: Option<Arc<Auth>>,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> io::Result<()> {
-    let app = router(config).into_make_service_with_connect_info::<SocketAddr>();
+    let app = router(config, auth).into_make_service_with_connect_info::<SocketAddr>();
     axum::serve(listener, app).with_graceful_shutdown(shutdown).await
 }
 
-pub fn router(config: Config) -> Router {
+/// With `auth`, the metrics path needs basic authentication; `/` stays open (health check).
+pub fn router(config: Config, auth: Option<Arc<Auth>>) -> Router {
     let config = Arc::new(config);
-    let mut router = Router::new().route("/", get(home));
+    let mut router = Router::new();
     if config.http_path != "/" {
         router = router.route(&config.http_path, get(metrics));
+        if let Some(auth) = auth {
+            router = router.route_layer(middleware::from_fn_with_state(auth, auth::require));
+        }
     }
     router
+        .route("/", get(home))
         .fallback(|| async { (StatusCode::NOT_FOUND, "Not found\n") })
         .method_not_allowed_fallback(|| async { (StatusCode::METHOD_NOT_ALLOWED, "Method not allowed\n") })
         .layer(middleware::from_fn(log_request))

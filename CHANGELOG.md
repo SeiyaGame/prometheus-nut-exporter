@@ -11,6 +11,8 @@ The metrics, their labels and the configuration are unchanged.
 
 ### Added
 
+- Basic authentication of the metrics path, configured like the official exporters: `WEB_CONFIG_FILE` with
+  `basic_auth_users` (bcrypt hashes, e.g. from `htpasswd`).
 - Static binaries for `amd64`, `arm64`, `armv7`, `armv6` and `386` attached to the releases.
 - Scrape timeout: the one sent by Prometheus (`X-Prometheus-Scrape-Timeout-Seconds`), or 10 seconds.
 - Warning in the log for invalid environment variables (they were silently ignored).

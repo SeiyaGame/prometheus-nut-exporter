@@ -1,5 +1,6 @@
 //! Prometheus/OpenMetrics exporter for Network UPS Tools (NUT).
 
+pub mod auth;
 pub mod config;
 pub mod metrics;
 pub mod nut;
