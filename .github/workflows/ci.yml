@@ -2,108 +2,202 @@ name: CI
 
 on:
   push:
-    branches: ["*"]
+    branches: [master]
+    tags: ['v*']
   pull_request:
-    branches: ["*"]
-  release:
-    types: [published]
-  workflow_dispatch: {}
+  # Weekly run: new clippy lints of the latest stable, new security advisories
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to a PR cancels its previous run; runs on master and tags always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CARGO_TERM_COLOR: always
-  DOCKER_BUILD_PLATFORMS: >-
-    linux/386,
-    linux/amd64,
-    linux/arm/v6,
-    linux/arm/v7,
-    linux/arm64/v8,
-  DOCKER_REPO: hon95/prometheus-nut-exporter
+  IMAGE: ghcr.io/seiyagame/prometheus-nut-exporter
 
 jobs:
+  workflows:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
+
   check:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Add dependencies
-        run: rustup component add clippy
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          # PRs (Dependabot included) reuse the cache of master without adding their own
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - run: cargo build --locked
+      - run: manage/check.sh
+      - run: cargo test --locked
+      - run: manage/integration_test.sh
+
+  advisories:
+    # Not required by "CI ok": an advisory published today must not block unrelated PRs.
+    # The weekly run reports them, and Dependabot opens the security updates.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+        with:
+          command: check advisories
+
+  binary:
+    # Static musl binaries, linked with rust-lld (no cross C toolchain needed). They are
+    # attached to the releases and packaged as is in the Docker image.
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: x86_64-unknown-linux-musl, arch: amd64 }
+          - { target: aarch64-unknown-linux-musl, arch: arm64 }
+          - { target: armv7-unknown-linux-musleabihf, arch: armv7 }
+          - { target: arm-unknown-linux-musleabi, arch: armv6 }
+          - { target: i686-unknown-linux-musl, arch: '386' }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: ${{ matrix.target }}
+          save-if: ${{ github.ref == 'refs/heads/master' }}
       - name: Build
-        run: cargo build --verbose
-      - name: Check code
-        run: manage/check.sh
-      - name: Run integration test
-        run: manage/integration_test.sh
-
-  publish-bleeding:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    needs: check
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Update version
-        run: echo "version=$(echo 0.0.0-SNAPSHOT+$(TZ=Etc/GMT date "+%Y-%m-%dT%H:%M:%SZ"))" | tee -a $GITHUB_ENV
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-        with:
-          platforms: ${{ env.DOCKER_BUILD_PLATFORMS }}
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Build and push to Docker Hub
-        uses: docker/build-push-action@v3
-        with:
-          build-args: |
-            APP_VERSION=${{ env.version }}
-          platforms: ${{ env.DOCKER_BUILD_PLATFORMS }}
-          tags: |
-            ${{ env.DOCKER_REPO }}:latest
-            ${{ env.DOCKER_REPO }}:bleeding
-          push: true
-
-  publish-stable:
-    if: github.event_name == 'release' && github.event.action == 'published' && startsWith(github.ref, 'refs/tags/v')
-    needs: check
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Extract version
+        env:
+          TARGET: ${{ matrix.target }}
+          BIN: prometheus-nut-exporter-linux-${{ matrix.arch }}
         run: |
-          # Get version from git tag
-          VERSION="$(echo ${GITHUB_REF#refs/tags/v})"
-          echo "version=$VERSION" | tee -a $GITHUB_ENV
-          # Check if semantic version (3 numbers, ignore pre-release and metadata)
-          echo $VERSION | grep -Po '^\d+\.\d+\.\d+'
-          # Extract other version representations
-          echo "version_major=$(echo $VERSION | grep -Po '^\d+')" | tee -a $GITHUB_ENV
-          echo "version_minor=$(echo $VERSION | grep -Po '^\d+\.\d+')" | tee -a $GITHUB_ENV
-          echo "version_patch=$(echo $VERSION | grep -Po '^\d+\.\d+\.\d+')" | tee -a $GITHUB_ENV
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+          # Version shown in /metrics (nut_exporter_info) and on the index page
+          case "$GITHUB_REF" in
+            refs/tags/v*) export APP_VERSION="${GITHUB_REF_NAME#v}" ;;
+            refs/heads/master) export APP_VERSION="0.0.0-dev+${GITHUB_SHA::7}" ;;
+          esac
+          cargo rustc --release --locked --target "$TARGET" -- -C linker=rust-lld
+          mkdir dist
+          cp "target/$TARGET/release/prometheus-nut-exporter" "dist/$BIN"
+          (cd dist && sha256sum "$BIN" > "$BIN.sha256")
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          platforms: ${{ env.DOCKER_BUILD_PLATFORMS }}
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
+          name: binary-${{ matrix.arch }}
+          path: dist/
+          retention-days: 7
+
+  docker:
+    # PRs only build the image (Dockerfile and base image updates are tested).
+    # ghcr.io: :dev for every push to master, :X.Y.Z, :X.Y, :X and :latest for v* tags.
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: [check, binary]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Build and push to Docker Hub
-        uses: docker/build-push-action@v3
+          pattern: binary-*
+          path: dist
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - if: github.event_name == 'push'
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
-          build-args: |
-            APP_VERSION=${{ env.version }}
-          platforms: ${{ env.DOCKER_BUILD_PLATFORMS }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
           tags: |
-            ${{ env.DOCKER_REPO }}:latest
-            ${{ env.DOCKER_REPO }}:${{ env.version_major }}
-            ${{ env.DOCKER_REPO }}:${{ env.version_minor }}
-            ${{ env.DOCKER_REPO }}:${{ env.version_patch }}
-            ${{ env.DOCKER_REPO }}:stable
-          push: true
+            type=raw,value=dev,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=ref,event=pr
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          # Packages the binaries built above instead of compiling them again
+          target: prebuilt
+          platforms: linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v6,linux/386
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  # Single check to require in the branch rules of master (and for Dependabot auto-merge)
+  ci-ok:
+    name: CI ok
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    needs: [workflows, check, binary, docker]
+    steps:
+      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
+      - run: echo "All required jobs passed or were skipped"
+
+  # v* tags: the GitHub release. master: the "dev" pre-release, replaced on every push
+  # (Dependabot merges included), to try the next version before releasing it.
+  release:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: [check, docker]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the notes need the history and the previous tags
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: binary-*
+          path: dist
+          merge-multiple: true
+      - if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          files: dist/*
+          generate_release_notes: true
+      - name: Replace the dev pre-release
+        if: github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          last_tag="$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)"
+          {
+            echo "Built from master at ${GITHUB_SHA::7}. Docker: \`$IMAGE:dev\`"
+            echo
+            echo "### Changes since ${last_tag:-the start of the fork}"
+            echo
+            git log --no-merges --format='- %s (%h)' ${last_tag:+"$last_tag..HEAD"} | head -n 100
+          } > RELEASE_NOTES.md
+          if gh release view dev >/dev/null 2>&1; then
+            gh release delete dev --cleanup-tag --yes
+          fi
+          gh release create dev dist/* \
+            --prerelease --target "$GITHUB_SHA" --title "dev ($(git rev-parse --short HEAD))" \
+            --notes-file RELEASE_NOTES.md

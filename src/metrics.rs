@@ -528,7 +528,7 @@ lazy_static! {
     pub static ref VAR_METRICS: HashMap<&'static str, Vec<&'static Metric>> = {
         let mut map: HashMap<&'static str, Vec<&'static Metric>> = HashMap::new();
         for metric in BASIC_METRICS.iter() {
-            map.entry(metric.nut_var).or_insert_with(Vec::new).push(metric);
+            map.entry(metric.nut_var).or_default().push(metric);
         }
         map
     };

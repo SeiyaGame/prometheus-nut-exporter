@@ -5,16 +5,16 @@ authors = ["HON95"]
 license = "GPLv3"
 description = "A Prometheus exporter for Network UPS Tools (NUT)."
 keywords = ["prometheus", "openmetrics", "nut", "exporter"]
-homepage = "https://github.com/HON95/prometheus-nut-exporter"
-repository = "https://github.com/HON95/prometheus-nut-exporter"
+homepage = "https://github.com/SeiyaGame/prometheus-nut-exporter"
+repository = "https://github.com/SeiyaGame/prometheus-nut-exporter"
 edition = "2021"
 
 [dependencies]
-tokio = { version = "1.20.*", features = ["full"] }
-hyper = { version = "0.14.*", features = ["full"] }
-chrono = "0.4.*"
-url = "2.2.*"
-regex = "1.6.*"
-lazy_static = "1.4.*"
-log = "0.4.*"
-env_logger = "0.9.*"
+tokio = { version = "1.47", features = ["full"] }
+# HTTP/1 only: Prometheus scrapes over HTTP/1, and h2 0.3 has unfixed advisories
+hyper = { version = "0.14.32", features = ["server", "http1", "tcp", "runtime"] }
+url = "2.5"
+regex = "1.11"
+lazy_static = "1.5"
+log = "0.4"
+env_logger = "0.11"

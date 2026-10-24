@@ -80,7 +80,7 @@ async fn entrypoint(config: Config, request: Request<Body>, remote_addr: SocketA
     }
 
     // Log request to console
-    log::debug!("Request: {} {} {} {}", remote_addr, request.method(), request.uri().path(), response.status().to_string());
+    log::debug!("Request: {} {} {} {}", remote_addr, request.method(), request.uri().path(), response.status());
 
     Ok(response)
 }
