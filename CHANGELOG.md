@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-24
+
 Maintained fork of [HON95/prometheus-nut-exporter](https://github.com/HON95/prometheus-nut-exporter).
 The metrics, their labels and the configuration are unchanged.
 

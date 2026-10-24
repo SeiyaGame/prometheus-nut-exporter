@@ -1,6 +1,6 @@
 [package]
 name = "prometheus-nut-exporter"
-version = "0.0.0"
+version = "1.3.0"
 authors = ["HON95", "SeiyaGame"]
 license = "GPL-3.0-only"
 description = "A Prometheus exporter for Network UPS Tools (NUT)."
