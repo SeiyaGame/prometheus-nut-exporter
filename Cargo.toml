@@ -12,7 +12,7 @@ rust-version = "1.85"
 
 [dependencies]
 axum = { version = "0.8.9", default-features = false, features = ["http1", "query", "tokio"] }
-base64 = "0.22"
+base64 = "0.23"
 bcrypt = "0.19.3"
 env_logger = "0.11"
 log = "0.4"
