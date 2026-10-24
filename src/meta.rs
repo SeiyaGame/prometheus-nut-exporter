@@ -1,4 +1,7 @@
 pub const APP_NAME: &str = "Prometheus NUT Exporter";
 pub const APP_AUTHOR: &str = "HON95";
-// Automatically set during build
-pub const APP_VERSION: &str = "0.0.0-SNAPSHOT";
+// Set at build time through the APP_VERSION environment variable (CI and Dockerfile)
+pub const APP_VERSION: &str = match option_env!("APP_VERSION") {
+    Some(version) => version,
+    None => "0.0.0-SNAPSHOT",
+};

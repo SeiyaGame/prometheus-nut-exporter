@@ -1,9 +1,15 @@
 # Prometheus NUT Exporter
 
-[![GitHub release](https://img.shields.io/github/v/release/HON95/prometheus-nut-exporter?label=Version)](https://github.com/HON95/prometheus-nut-exporter/releases)
-[![CI](https://github.com/HON95/prometheus-nut-exporter/workflows/CI/badge.svg?branch=master)](https://github.com/HON95/prometheus-nut-exporter/actions?query=workflow%3ACI)
-[![FOSSA status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FHON95%2Fprometheus-nut-exporter.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FHON95%2Fprometheus-nut-exporter?ref=badge_shield)
-[![Docker pulls](https://img.shields.io/docker/pulls/hon95/prometheus-nut-exporter?label=Docker%20Hub)](https://hub.docker.com/r/hon95/prometheus-nut-exporter)
+[![GitHub release](https://img.shields.io/github/v/release/SeiyaGame/prometheus-nut-exporter?label=Version)](https://github.com/SeiyaGame/prometheus-nut-exporter/releases)
+[![CI](https://github.com/SeiyaGame/prometheus-nut-exporter/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/SeiyaGame/prometheus-nut-exporter/actions/workflows/ci.yml)
+
+> [!NOTE]
+> This is a maintained fork of [HON95/prometheus-nut-exporter](https://github.com/HON95/prometheus-nut-exporter),
+> which is no longer maintained. Dependencies are kept up to date, and images and binaries are published on
+> GitHub only: `ghcr.io/seiyagame/prometheus-nut-exporter` and the
+> [releases](https://github.com/SeiyaGame/prometheus-nut-exporter/releases) (nothing on Docker Hub).
+> The metrics and the configuration are unchanged: replace `hon95/prometheus-nut-exporter` with
+> `ghcr.io/seiyagame/prometheus-nut-exporter` to switch.
 
 ![Dashboard](https://grafana.com/api/dashboards/14371/images/10335/image)
 
@@ -27,7 +33,7 @@ version: "3.7"
 services:
   nut-exporter:
     # Stable v1
-    image: hon95/prometheus-nut-exporter:1
+    image: ghcr.io/seiyagame/prometheus-nut-exporter:1
     environment:
       - TZ=Europe/Oslo
       - HTTP_PATH=/metrics
@@ -39,6 +45,17 @@ services:
       #- PRINT_METRICS_AND_EXIT=false
     ports:
       - "9995:9995/tcp"
+```
+
+### Binary
+
+Static Linux binaries (no dependencies) for `amd64`, `arm64`, `armv7`, `armv6` and `386` are attached to each
+[release](https://github.com/SeiyaGame/prometheus-nut-exporter/releases), with their SHA-256:
+
+```bash
+curl -fsSLO https://github.com/SeiyaGame/prometheus-nut-exporter/releases/latest/download/prometheus-nut-exporter-linux-amd64
+chmod +x prometheus-nut-exporter-linux-amd64
+HTTP_PATH=/metrics ./prometheus-nut-exporter-linux-amd64
 ```
 
 ### Prometheus
@@ -92,7 +109,12 @@ resources:
 
 ### Docker Image Versions
 
-Use e.g. `1` for stable v1.y.z releases and `latest` for bleeding/dev/unstable releases.
+Images are published on `ghcr.io/seiyagame/prometheus-nut-exporter` for `linux/amd64`, `linux/arm64`,
+`linux/arm/v7`, `linux/arm/v6` and `linux/386`:
+
+- `1`, `1.Y` or `1.Y.Z` for releases (`1` follows the stable v1 releases), `latest` for the last release.
+- `dev` for the master branch, rebuilt on every change (dependency updates included). The `dev`
+  [pre-release](https://github.com/SeiyaGame/prometheus-nut-exporter/releases/tag/dev) has the same binaries.
 
 ### Environment Variables
 
@@ -105,6 +127,24 @@ Use e.g. `1` for stable v1.y.z releases and `latest` for bleeding/dev/unstable r
 ## Metrics
 
 See [metrics](metrics.md).
+
+## Development
+
+```bash
+cargo run                        # listens on :9995
+manage/check.sh                  # clippy and formatting checks
+manage/integration_test.sh       # scrapes a mock NUT server (needs Python 3 and curl)
+docker build -t prometheus-nut-exporter .
+```
+
+The CI (`.github/workflows/ci.yml`) runs the checks and the integration test, builds the static musl binaries
+for every architecture and packages them in the multi-arch Docker image. Each push to master replaces the `dev`
+pre-release and the `:dev` image. Pushing a `v*` tag publishes the release (binaries, release notes,
+`X.Y.Z`, `X.Y`, `X` and `latest` images).
+
+Dependabot opens weekly updates (crates, GitHub Actions, base images). Minor and patch updates of the crates
+and the base images are merged automatically once the CI passes, which publishes a new `dev` build; majors and
+GitHub Actions updates (pinned to a commit SHA) wait for a review.
 
 ## License
 
