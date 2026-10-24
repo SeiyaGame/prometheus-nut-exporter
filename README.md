@@ -128,8 +128,45 @@ Images are published on `ghcr.io/seiyagame/prometheus-nut-exporter` for `linux/a
 - `HTTP_PORT` (defaults to `9995`): The HTTP server port.
 - `HTTP_PATH` (defaults to `/nut`): The HTTP server metrics path. You may want to set it to `/metrics` on new setups to avoid extra Prometheus configuration (not changed here due to compatibility).
 - `PRINT_METRICS_AND_EXIT` (defaults to `false`): Print a Markdown-formatted table consisting of all metrics and then immediately exit. Used to update [metrics.md](metrics.md).
+- `WEB_CONFIG_FILE` (no default): Web config file enabling basic authentication, see below.
 
 Invalid values are ignored with a warning in the log, and the default value is used.
+
+### Basic Authentication
+
+Like the official Prometheus exporters ([exporter-toolkit](https://prometheus.io/docs/prometheus/latest/configuration/https/)),
+the users are listed in a web config file with a bcrypt hash of their password:
+
+```yaml
+# web-config.yml (this example hash is the password "changeme": make your own)
+basic_auth_users:
+  prometheus: $2b$10$PA2tvJhQJXTbUa6wvBUkyO26xz4sv1paOrWFwpBihHsxtQX1xMOiK
+```
+
+Generate a hash with the exporter itself (the password is read from stdin):
+
+```bash
+docker run --rm -i ghcr.io/seiyagame/prometheus-nut-exporter:1 hash-password
+```
+
+Then set `WEB_CONFIG_FILE` to the file (in Docker, mount it read-only: see the comments of
+[`docker-compose.hardened.yml`](docker-compose.hardened.yml)), and give the credentials to Prometheus:
+
+```yaml
+scrape_configs:
+  - job_name: "nut"
+    basic_auth:
+      username: prometheus
+      password_file: /etc/prometheus/nut-exporter-password
+    # static_configs and relabel_configs as above
+```
+
+- Only the metrics path is protected: `/` stays open for the health check and only shows the version.
+- The exporter refuses to start when the file is invalid, has a password that is not a bcrypt hash, or contains
+  `tls_server_config`: TLS is not supported. Without TLS the password travels in clear on the network, so use a
+  reverse proxy (Caddy, Traefik, nginx) for TLS when Prometheus is on another machine.
+- A file without `basic_auth_users` disables the authentication (with a warning in the log).
+- The file is read at startup: restart the exporter after changing it.
 
 ## Metrics
 

@@ -22,6 +22,11 @@ services:
       # Two threads are plenty, instead of one per CPU of the host (pids_limit below)
       - TOKIO_WORKER_THREADS=2
       #- RUST_LOG=info
+      # Basic authentication (README): users and bcrypt hashes in web-config.yml
+      #- WEB_CONFIG_FILE=/etc/nut-exporter/web-config.yml
+
+    #volumes:
+    #  - ./web-config.yml:/etc/nut-exporter/web-config.yml:ro
 
     ports:
       # Only reachable from the host (Prometheus on the same machine). Remove 127.0.0.1 to

@@ -12,9 +12,15 @@ rust-version = "1.85"
 
 [dependencies]
 axum = { version = "0.8.9", default-features = false, features = ["http1", "query", "tokio"] }
+base64 = "0.22"
+bcrypt = "0.19.3"
 env_logger = "0.11"
 log = "0.4"
-tokio = { version = "1.53.3", features = ["macros", "net", "rt-multi-thread", "signal", "time", "io-util"] }
+serde = { version = "1", features = ["derive"] }
+# Maintained fork of serde_yaml (archived), for the exporter-toolkit web config file
+serde_norway = "0.9.42"
+subtle = "2.6"
+tokio = { version = "1.53.3", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time", "io-util"] }
 
 [dev-dependencies]
 http-body-util = "0.1"
@@ -26,6 +32,12 @@ unsafe_code = "forbid"
 [lints.clippy]
 dbg_macro = "warn"
 todo = "warn"
+
+# bcrypt is ~20 times slower without optimizations: keeps the tests and debug runs usable
+[profile.dev.package.bcrypt]
+opt-level = 3
+[profile.dev.package.blowfish]
+opt-level = 3
 
 [profile.release]
 lto = true
