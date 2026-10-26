@@ -28,7 +28,7 @@ esac \
 && mv target/$RUST_TARGET/release/prometheus-nut-exporter .
 
 ## Runtime stage (no RUN: multi-arch images build without QEMU)
-FROM alpine:3.22 AS runtime
+FROM alpine:3.24 AS runtime
 WORKDIR /app
 ARG APP_UID=5000
 ARG APP_GID=5000
